@@ -1,0 +1,21 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    environment:
+      TASKBRIDGE_DB: /data/taskbridge.db
+    ports:
+      - "8000:8000"
+    volumes:
+      - taskbridge-data:/data
+  workshop:
+    build:
+      context: web
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  taskbridge-data:

@@ -1,0 +1,114 @@
+from __future__ import annotations
+
+import hashlib
+import os
+import uuid
+from pathlib import Path
+
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import PlainTextResponse
+
+from .engine import assess_workflow, capture_workflow, explain_assessment, simulate_pilot
+from .handoff import render_handoff
+from .models import (
+    Assessment,
+    Audience,
+    AudienceBrief,
+    PilotCreate,
+    PilotRecord,
+    PilotRun,
+    WorkflowCreate,
+    WorkflowRecord,
+)
+from .repository import Repository
+from .scenarios import load_scenario
+from .security import UntrustedInstructionError
+
+
+def create_app(database_path: str | Path | None = None) -> FastAPI:
+    repository = Repository(database_path or os.getenv("TASKBRIDGE_DB", "taskbridge.db"))
+    app = FastAPI(title="TaskBridge AI", version="0.1.0")
+
+    @app.get("/health")
+    def health() -> dict[str, str]:
+        return {"status": "healthy", "mode": "offline_deterministic"}
+
+    @app.post("/api/workflows", response_model=WorkflowRecord, status_code=201)
+    def create_workflow(payload: WorkflowCreate) -> WorkflowRecord:
+        try:
+            record = capture_workflow(payload, f"wf-{uuid.uuid4().hex[:12]}")
+        except UntrustedInstructionError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        repository.save("workflows", record.workflow_id, record)
+        return record
+
+    @app.post("/api/workflows/{workflow_id}/assess", response_model=Assessment)
+    def assess(workflow_id: str) -> Assessment:
+        data = repository.get("workflows", workflow_id)
+        if not data:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+        workflow = WorkflowRecord.model_validate(data)
+        digest = hashlib.sha256(workflow.model_dump_json().encode()).hexdigest()[:12]
+        result = assess_workflow(workflow, f"assess-{digest}")
+        repository.save("assessments", result.assessment_id, result, workflow_id=workflow_id)
+        return result
+
+    @app.post("/api/pilots", response_model=PilotRecord, status_code=201)
+    def create_pilot(payload: PilotCreate) -> PilotRecord:
+        if not repository.get("workflows", payload.workflow_id):
+            raise HTTPException(status_code=404, detail="Workflow not found")
+        record = PilotRecord(pilot_id=f"pilot-{uuid.uuid4().hex[:12]}", **payload.model_dump())
+        repository.save(
+            "pilots",
+            record.pilot_id,
+            record,
+            workflow_id=record.workflow_id,
+            scenario_id=record.scenario_id,
+        )
+        return record
+
+    @app.post("/api/pilots/{pilot_id}/run", response_model=PilotRun)
+    def run_pilot(pilot_id: str) -> PilotRun:
+        data = repository.get("pilots", pilot_id)
+        if not data:
+            raise HTTPException(status_code=404, detail="Pilot not found")
+        pilot = PilotRecord.model_validate(data)
+        records = load_scenario(pilot.scenario_id)
+        result = simulate_pilot(pilot.pilot_id, pilot.scenario_id, records)
+        if existing := repository.get_run_by_fingerprint(result.fingerprint):
+            return PilotRun.model_validate(existing)
+        repository.save(
+            "pilot_runs",
+            result.run_id,
+            result,
+            pilot_id=pilot.pilot_id,
+            fingerprint=result.fingerprint,
+        )
+        return result
+
+    def _workflow_and_assessment(pilot_id: str) -> tuple[WorkflowRecord, Assessment]:
+        pilot_data = repository.get("pilots", pilot_id)
+        if not pilot_data:
+            raise HTTPException(status_code=404, detail="Pilot not found")
+        pilot = PilotRecord.model_validate(pilot_data)
+        workflow_data = repository.get("workflows", pilot.workflow_id)
+        if not workflow_data:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+        workflow = WorkflowRecord.model_validate(workflow_data)
+        assessment = assess_workflow(workflow, f"assess-{workflow.workflow_id}")
+        return workflow, assessment
+
+    @app.get("/api/pilots/{pilot_id}/explanations", response_model=AudienceBrief)
+    def explanations(pilot_id: str, audience: Audience) -> AudienceBrief:
+        workflow, assessment = _workflow_and_assessment(pilot_id)
+        return explain_assessment(workflow, assessment, audience)
+
+    @app.get("/api/pilots/{pilot_id}/handoff", response_class=PlainTextResponse)
+    def handoff(pilot_id: str) -> str:
+        workflow, assessment = _workflow_and_assessment(pilot_id)
+        return render_handoff(workflow, assessment)
+
+    return app
+
+
+app = create_app()
