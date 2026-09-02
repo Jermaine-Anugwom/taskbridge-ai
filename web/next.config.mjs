@@ -1,12 +1,12 @@
-const isPages = process.env.GITHUB_ACTIONS === "true";
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "export",
   trailingSlash: true,
   images: { unoptimized: true },
-  basePath: isPages ? "/taskbridge-ai" : "",
-  assetPrefix: isPages ? "/taskbridge-ai/" : undefined,
+  basePath,
+  assetPrefix: basePath ? `${basePath}/` : undefined,
 };
 
 export default nextConfig;
