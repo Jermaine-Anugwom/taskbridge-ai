@@ -431,6 +431,41 @@ textarea { min-height: 100px; padding: 12px; resize: vertical; }
 .authority-strip strong { color: var(--lime); }
 .authority-strip p { margin: 0; color: #cbd5e2; font-size: 0.74rem; }
 
+.operate-view {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.82fr) minmax(360px, 1.18fr) minmax(220px, 0.62fr);
+  gap: clamp(22px, 3vw, 44px);
+  align-items: start;
+}
+.operate-copy h2 { max-width: 13ch; }
+.operate-copy > p { max-width: 58ch; color: var(--ink-soft); }
+.runtime-ledger { margin: 30px 0 0; border-top: 1px solid var(--blue); }
+.runtime-ledger div { display: grid; grid-template-columns: 120px 1fr; gap: 14px; padding: 12px 3px; border-bottom: 1px solid var(--line); }
+.runtime-ledger dt { color: var(--ink-soft); font-size: 0.68rem; font-weight: 750; }
+.runtime-ledger dd { margin: 0; font-size: 0.72rem; font-weight: 850; overflow-wrap: anywhere; }
+.trace-sheet { background: #fff; border: 1px solid var(--line); }
+.trace-heading { display: flex; justify-content: space-between; gap: 20px; padding: 13px 16px; color: #fff; background: var(--ink); font-size: 0.68rem; letter-spacing: 0.08em; }
+.trace-heading span { color: #b8c6d9; font-weight: 800; }
+.trace-heading strong { color: var(--lime); }
+.trace-sheet ol { display: grid; gap: 0; margin: 0; padding: 8px 18px; list-style: none; }
+.trace-sheet li { position: relative; display: grid; grid-template-columns: 34px 1fr; gap: 14px; min-height: 76px; padding: 15px 0; border-bottom: 1px solid #d8e0eb; }
+.trace-sheet li:last-child { border-bottom: 0; }
+.trace-sheet li > b { width: 28px; height: 28px; display: grid; place-items: center; color: var(--blue-deep); border: 1px solid #91a6c6; border-radius: 50%; font-size: 0.62rem; font-variant-numeric: tabular-nums; }
+.trace-sheet li:not(:last-child)::after { content: ""; position: absolute; left: 13px; top: 45px; bottom: -12px; width: 1px; background: #91a6c6; }
+.trace-sheet li div { display: grid; align-content: start; gap: 4px; }
+.trace-sheet li strong { font-size: 0.84rem; }
+.trace-sheet li span { color: var(--ink-soft); font-size: 0.72rem; }
+.trace-fingerprint { display: flex; justify-content: space-between; gap: 18px; padding: 13px 16px; color: #fff; background: var(--blue); font-size: 0.68rem; }
+.trace-fingerprint code { color: #fff; font-size: 0.7rem; font-variant-numeric: tabular-nums; }
+.operations-rail { border-top: 6px solid var(--lime); background: var(--paper-blue); }
+.operations-rail h3 { margin: 0; padding: 15px; color: #fff; background: var(--blue-deep); font-size: 0.84rem; }
+.operations-rail > div { display: grid; padding: 13px 15px; border-bottom: 1px solid var(--line); }
+.operations-rail span, .operations-rail small { color: var(--ink-soft); font-size: 0.64rem; }
+.operations-rail strong { margin-top: 3px; font-size: 1rem; font-variant-numeric: tabular-nums; }
+.operations-rail .fallback-rule { padding: 18px 15px; color: var(--ink); background: var(--lime); }
+.fallback-rule span { color: var(--ink); font-weight: 850; letter-spacing: 0.06em; }
+.fallback-rule p { margin: 8px 0 0; font-size: 0.72rem; }
+
 .measure-view { display: grid; grid-template-columns: 1.2fr 0.8fr 0.75fr; gap: clamp(22px, 3vw, 46px); align-items: start; }
 .measure-copy h2 { max-width: 12ch; }
 .measure-copy > p { max-width: 58ch; color: var(--ink-soft); }
@@ -503,8 +538,8 @@ textarea { min-height: 100px; padding: 12px; resize: vertical; }
   .rail-title, .rail-foot { grid-column: 1 / -1; }
   .evidence-row { grid-template-columns: 1fr; }
   .evidence-row small { grid-row: auto; }
-  .measure-view, .handoff-view { grid-template-columns: 1fr 1fr; }
-  .continue-rule, .handoff-note { grid-column: 1 / -1; transform: none; }
+  .operate-view, .measure-view, .handoff-view { grid-template-columns: 1fr 1fr; }
+  .operations-rail, .continue-rule, .handoff-note { grid-column: 1 / -1; transform: none; }
 }
 
 @media (max-width: 760px) {
@@ -525,7 +560,7 @@ textarea { min-height: 100px; padding: 12px; resize: vertical; }
   .bench-topline { margin-bottom: 22px; }
   .bench-topline > span { max-width: 24ch; }
   h2 { font-size: clamp(1.8rem, 10vw, 2.8rem); }
-  .listen-grid, .map-intro, .decide-view, .explain-view, .measure-view, .handoff-view { grid-template-columns: 1fr; }
+  .listen-grid, .map-intro, .decide-view, .explain-view, .operate-view, .measure-view, .handoff-view { grid-template-columns: 1fr; }
   .field-stack { grid-template-columns: 1fr; }
   .observer-notes { transform: none; }
   .map-intro { gap: 8px; }

@@ -8,8 +8,9 @@
 4. `explain_assessment` uses the same assessment evidence to produce four audience views.
 5. A pilot selects one of three synthetic adapters and runs deterministic decisions.
 6. Each decision retains a source record identifier and optional human checkpoint.
-7. SQLite stores workflows, assessments, pilots, and fingerprinted runs.
-8. The handoff renderer creates a plain-text operating package.
+7. Optional model analysis emits a schema-bound tool call that is validated against workflow evidence.
+8. SQLite or PostgreSQL stores workflows, assessments, pilots, fingerprinted runs, and model traces.
+9. The handoff renderer creates a plain-text operating package.
 
 ## Trust boundaries
 
@@ -29,4 +30,4 @@ flowchart TB
 
 ## Model boundary
 
-`StructuredModel` is a narrow provider protocol. `DeterministicModel` is the default. `JsonEndpointModel` supports local Ollama or an explicitly configured JSON endpoint. Provider output is not used to weaken validation, evidence, or external-action restrictions.
+`StructuredModel` is a narrow provider protocol. `DeterministicModel` is the default. `OpenAICompatibleModel` supports local Ollama or an explicitly configured compatible endpoint. The provider is forced through the `record_workflow_analysis` tool schema. Provider output is validated again locally and cannot weaken evidence or external-action restrictions.

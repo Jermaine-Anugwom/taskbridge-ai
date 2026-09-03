@@ -27,6 +27,12 @@ class RiskLevel(StrEnum):
     HIGH = "high"
 
 
+class ModelRunStatus(StrEnum):
+    SUCCEEDED = "succeeded"
+    FALLBACK = "fallback"
+    BLOCKED = "blocked"
+
+
 class WorkflowStep(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -148,3 +154,64 @@ class AudienceBrief(BaseModel):
     what_changes: list[str]
     what_does_not_change: list[str]
     evidence_ids: list[str]
+
+
+class ModelAnalysisRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    task: str = Field(
+        default="Identify the safest useful role for AI in this workflow.",
+        min_length=12,
+        max_length=300,
+    )
+
+
+class EvidenceBoundObservation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    claim: str = Field(min_length=3, max_length=600)
+    evidence_ids: list[str] = Field(min_length=1, max_length=12)
+    confidence: float = Field(ge=0, le=1)
+
+
+class ProposedToolCall(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    tool_name: str = Field(pattern=r"^(hold_for_review|draft_pilot_note)$")
+    reason: str = Field(min_length=3, max_length=300)
+    evidence_ids: list[str] = Field(min_length=1, max_length=12)
+    requires_approval: bool = True
+
+
+class StructuredModelOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    summary: str = Field(min_length=3, max_length=800)
+    summary_evidence_ids: list[str] = Field(min_length=1, max_length=12)
+    observations: list[EvidenceBoundObservation] = Field(min_length=1, max_length=8)
+    proposed_tools: list[ProposedToolCall] = Field(default_factory=list, max_length=4)
+    abstain: bool
+    abstention_reason: str | None = Field(default=None, max_length=400)
+
+
+class ModelUsage(BaseModel):
+    input_tokens: int = Field(ge=0)
+    output_tokens: int = Field(ge=0)
+    estimated_cost_usd: float | None = Field(default=None, ge=0)
+
+
+class ModelTrace(BaseModel):
+    trace_id: str
+    workflow_id: str
+    provider: str
+    model: str
+    prompt_version: str
+    prompt_hash: str
+    schema_version: str
+    status: ModelRunStatus
+    latency_ms: int = Field(ge=0)
+    retry_count: int = Field(ge=0)
+    usage: ModelUsage
+    output: StructuredModelOutput
+    error_category: str | None = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

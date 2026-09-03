@@ -44,6 +44,23 @@ test("runs the synthetic pilot without external actions", async ({ page }) => {
   await expect(page.getByText("Synthetic pilot completed. Results are ready.")).toBeAttached();
 });
 
+test("makes the model path, evidence checks, and approval boundary inspectable", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /Operate/ }).click();
+  await expect(page.getByRole("heading", { name: "See what the model did, what it cost, and where it stopped." })).toBeVisible();
+  await expect(page.getByLabel("Synthetic model trace")).toContainText("SCHEMA VALID");
+  await expect(page.getByText("Approval required")).toBeVisible();
+  await expect(page.getByText("Rates are never invented")).toBeVisible();
+});
+
+test("records when policy bypasses an unnecessary model call", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /Invoice exceptions/ }).click();
+  await page.getByRole("button", { name: /Operate/ }).click();
+  await expect(page.getByLabel("Synthetic model trace")).toContainText("MODEL BYPASSED");
+  await expect(page.getByText("Bypassed by policy")).toBeVisible();
+});
+
 test("supports keyboard navigation", async ({ page }) => {
   await page.goto("/");
   await page.keyboard.press("Tab");

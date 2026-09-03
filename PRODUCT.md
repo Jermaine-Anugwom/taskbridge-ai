@@ -8,7 +8,7 @@ web
 
 ## Stack
 
-Next.js and TypeScript for the workshop interface; Python 3.12, FastAPI, Pydantic, and SQLite for the local service. The default experience is deterministic, offline, and credential-free. Optional Ollama and generic model endpoints may be configured locally.
+Next.js and TypeScript for the workshop interface; Python 3.12, FastAPI, and Pydantic for the service; SQLite for local use and PostgreSQL for deployed operation. The credential-free experience replays deterministic fixtures. An optional OpenAI-compatible provider path adds schema-bound tool calls, evidence validation, retries, fallback, and cost and latency traces.
 
 ## Users
 
@@ -33,9 +33,11 @@ The first release includes synthetic shared-inbox triage, weekly status reportin
 - Guided workflow interview and current-state map.
 - Explainable rules, AI-assist, hybrid, or no-change recommendation.
 - Deterministic pilot simulator with evidence, confidence, exceptions, and human checkpoints.
+- Optional model-backed analysis with versioned prompts, structured tool calls, and inspectable traces.
+- Role-gated API access, PostgreSQL persistence, and failure-safe deterministic fallback.
 - Role-specific explanations for employees, managers, executives, and IT or security.
 - Exportable pilot charter, SOP, measures, risks, rollback plan, and training guide.
-- Synthetic email, spreadsheet, and ticket-queue adapters only in v0.1.0.
+- Synthetic email, spreadsheet, and ticket-queue adapters only in v0.2.0.
 - No real company integrations, external writes, or model credentials are required.
 - Unknown facts remain unknown; outcome figures are labeled synthetic and never presented as company results.
 
@@ -45,7 +47,7 @@ The product name is TaskBridge AI. Its voice is plain, practical, respectful of 
 
 ## Evidence on Hand
 
-Only synthetic scenarios and deterministic evaluation results are available. There are no customer deployments, testimonials, production outcomes, or commercial benchmarks, and none may be fabricated.
+Only synthetic scenarios, fixture traces, and deterministic evaluation results are available. There are no customer deployments, testimonials, production outcomes, or commercial benchmarks, and none may be fabricated.
 
 ## Product Principles
 

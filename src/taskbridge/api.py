@@ -5,36 +5,52 @@ import os
 import uuid
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import PlainTextResponse
 
 from .engine import assess_workflow, capture_workflow, explain_assessment, simulate_pilot
+from .auth import Role, auth_required, require_role
 from .handoff import render_handoff
 from .models import (
     Assessment,
     Audience,
     AudienceBrief,
+    ModelAnalysisRequest,
+    ModelTrace,
     PilotCreate,
     PilotRecord,
     PilotRun,
     WorkflowCreate,
     WorkflowRecord,
 )
+from .model_providers import configured_model
+from .model_runtime import run_model_analysis, trace_fingerprint
 from .repository import Repository
 from .scenarios import load_scenario
 from .security import UntrustedInstructionError
 
 
 def create_app(database_path: str | Path | None = None) -> FastAPI:
-    repository = Repository(database_path or os.getenv("TASKBRIDGE_DB", "taskbridge.db"))
-    app = FastAPI(title="TaskBridge AI", version="0.1.0")
+    repository = Repository(
+        database_path
+        or os.getenv("TASKBRIDGE_DATABASE_URL")
+        or os.getenv("TASKBRIDGE_DB", "taskbridge.db")
+    )
+    app = FastAPI(title="TaskBridge AI", version="0.2.0")
 
     @app.get("/health")
-    def health() -> dict[str, str]:
-        return {"status": "healthy", "mode": "offline_deterministic"}
+    def health() -> dict[str, str | bool]:
+        return {
+            "status": "healthy",
+            "mode": os.getenv("TASKBRIDGE_MODEL_PROVIDER", "deterministic"),
+            "database": repository.backend,
+            "auth_required": auth_required(),
+        }
 
     @app.post("/api/workflows", response_model=WorkflowRecord, status_code=201)
-    def create_workflow(payload: WorkflowCreate) -> WorkflowRecord:
+    def create_workflow(
+        payload: WorkflowCreate, _: Role = Depends(require_role(Role.OPERATOR))
+    ) -> WorkflowRecord:
         try:
             record = capture_workflow(payload, f"wf-{uuid.uuid4().hex[:12]}")
         except UntrustedInstructionError as exc:
@@ -43,7 +59,9 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
         return record
 
     @app.post("/api/workflows/{workflow_id}/assess", response_model=Assessment)
-    def assess(workflow_id: str) -> Assessment:
+    def assess(
+        workflow_id: str, _: Role = Depends(require_role(Role.OPERATOR))
+    ) -> Assessment:
         data = repository.get("workflows", workflow_id)
         if not data:
             raise HTTPException(status_code=404, detail="Workflow not found")
@@ -54,7 +72,9 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
         return result
 
     @app.post("/api/pilots", response_model=PilotRecord, status_code=201)
-    def create_pilot(payload: PilotCreate) -> PilotRecord:
+    def create_pilot(
+        payload: PilotCreate, _: Role = Depends(require_role(Role.OPERATOR))
+    ) -> PilotRecord:
         if not repository.get("workflows", payload.workflow_id):
             raise HTTPException(status_code=404, detail="Workflow not found")
         record = PilotRecord(pilot_id=f"pilot-{uuid.uuid4().hex[:12]}", **payload.model_dump())
@@ -68,7 +88,9 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
         return record
 
     @app.post("/api/pilots/{pilot_id}/run", response_model=PilotRun)
-    def run_pilot(pilot_id: str) -> PilotRun:
+    def run_pilot(
+        pilot_id: str, _: Role = Depends(require_role(Role.OPERATOR))
+    ) -> PilotRun:
         data = repository.get("pilots", pilot_id)
         if not data:
             raise HTTPException(status_code=404, detail="Pilot not found")
@@ -99,14 +121,46 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
         return workflow, assessment
 
     @app.get("/api/pilots/{pilot_id}/explanations", response_model=AudienceBrief)
-    def explanations(pilot_id: str, audience: Audience) -> AudienceBrief:
+    def explanations(
+        pilot_id: str,
+        audience: Audience,
+        _: Role = Depends(require_role(Role.VIEWER)),
+    ) -> AudienceBrief:
         workflow, assessment = _workflow_and_assessment(pilot_id)
         return explain_assessment(workflow, assessment, audience)
 
     @app.get("/api/pilots/{pilot_id}/handoff", response_class=PlainTextResponse)
-    def handoff(pilot_id: str) -> str:
+    def handoff(
+        pilot_id: str, _: Role = Depends(require_role(Role.VIEWER))
+    ) -> str:
         workflow, assessment = _workflow_and_assessment(pilot_id)
         return render_handoff(workflow, assessment)
+
+    @app.post("/api/workflows/{workflow_id}/model-analysis", response_model=ModelTrace)
+    def model_analysis(
+        workflow_id: str,
+        payload: ModelAnalysisRequest,
+        _: Role = Depends(require_role(Role.OPERATOR)),
+    ) -> ModelTrace:
+        data = repository.get("workflows", workflow_id)
+        if not data:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+        workflow = WorkflowRecord.model_validate(data)
+        result = run_model_analysis(workflow, payload.task, configured_model())
+        repository.save(
+            "model_traces",
+            result.trace_id,
+            result,
+            workflow_id=workflow_id,
+            fingerprint=trace_fingerprint(result),
+        )
+        return result
+
+    @app.get("/api/operations/model-traces", response_model=list[ModelTrace])
+    def model_traces(
+        limit: int = 20, _: Role = Depends(require_role(Role.VIEWER))
+    ) -> list[ModelTrace]:
+        return [ModelTrace.model_validate(item) for item in repository.list_model_traces(limit)]
 
     return app
 

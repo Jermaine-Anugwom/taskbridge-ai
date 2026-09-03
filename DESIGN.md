@@ -116,7 +116,7 @@ The interface is dense enough for serious operational review but uses large head
 
 The visual system is implemented directly in `web/app/page.tsx` and `web/app/style.css`; the display face is the locally bundled Archivo variable font. There are no generated imagery, customer photographs, or outcome-proof assets in the interface. The desktop and mobile PNGs under `.impeccable/review/` are review evidence, not product-content assets.
 
-The final finish-review disposition is **SHIP**. All findings are clear in the reviewed desktop and mobile surfaces. Preserve that statement as a dated implementation status, not as permission to bypass future review after visual or behavioral changes.
+As of 2026-09-03, the TaskBridge AI v0.2.0 finish-review disposition is **SHIP — all findings clear** across the reviewed desktop and mobile surfaces. Preserve that statement as a dated implementation status, not as permission to bypass future review after visual or behavioral changes.
 
 **The Inspectable Work Rule.** The process, evidence, and human authority must remain more visually prominent than technology branding or decoration.
 
@@ -179,7 +179,7 @@ The desktop composition is a capped workshop canvas with three layers: a full-wi
 
 Spacing follows a compact 4px/8px base with recurring 12px, 14px, 18px, 24px, 28px, and 40px intervals. Use tighter values inside controls and evidence rows, medium values between related blocks, and the largest values to separate stage-level ideas. Process tiles remain visually connected by arrows and shared lanes.
 
-At widths below 1050px, the stage rail moves above the workbench as a horizontally scrollable strip. Three-column decision, measure, and handoff layouts collapse to two columns, and supporting evidence can span the full width. At widths below 760px, the interface becomes one column: the header becomes two rows, stage controls form a visible four-column wrap, scenario folders remain horizontally scrollable, and process lanes stack vertically with downward arrows. Dense record tables may scroll within their own container, but the page itself must not overflow horizontally.
+At widths below 1050px, the stage rail moves above the workbench as a horizontally scrollable strip. Three-column decision, operate, measure, and handoff layouts collapse to two columns, and supporting evidence can span the full width. At widths below 760px, the interface becomes one column: the header becomes two rows, stage controls form a visible four-column wrap, scenario folders remain horizontally scrollable, and process lanes stack vertically with downward arrows. Dense record tables may scroll within their own container, but the page itself must not overflow horizontally.
 
 On mobile, preserve the sequence: scenario selection, complete stage navigation, workshop coordinate, stage conclusion, then the operational artifact. The stage controls must remain discoverable without opening a menu, and the initial workflow map must read as a vertical process rather than a squeezed desktop diagram.
 
@@ -187,7 +187,7 @@ Print removes application chrome, scenario folders, stage controls, navigation, 
 
 **The Lane Owns Its Overflow Rule.** When content cannot collapse safely, confine horizontal scrolling to the scenario strip or record table. Never create page-level horizontal overflow.
 
-**The Path Stays Visible Rule.** Responsive changes may reflow or wrap the seven stages, but must not hide them behind an undisclosed control.
+**The Path Stays Visible Rule.** Responsive changes may reflow or wrap the eight stages, but must not hide them behind an undisclosed control.
 
 ## Elevation & Depth
 
@@ -224,8 +224,8 @@ Circular markers are reserved for ordered steps, legends, and scrollbar thumbs. 
 
 ### Stage Rail
 
-- **Style:** Seven numbered steps on a deep cobalt field. The active step reverses to review lime with workshop-ink text and, on desktop, points into the workbench.
-- **State:** Use `aria-current="step"` for the active stage. Hover adds a restrained light veil to inactive items; active hover remains lime. On mobile, all seven stages wrap visibly across two rows and secondary labels disappear to protect scanability.
+- **Style:** Eight numbered steps—Listen, Map, Decide, Explain, Simulate, Operate, Measure, and Hand off—sit on a deep cobalt field. The active step reverses to review lime with workshop-ink text and, on desktop, points into the workbench.
+- **State:** Use `aria-current="step"` for the active stage. Hover adds a restrained light veil to inactive items; active hover remains lime. On mobile, all eight stages wrap visibly across two rows and secondary labels disappear to protect scanability.
 
 ### Cards / Containers
 
@@ -250,6 +250,12 @@ Circular markers are reserved for ordered steps, legends, and scrollbar thumbs. 
 
 - **Style:** Evidence identifiers and table headers use the label hierarchy; values use stronger weight and tabular numerals. Results appear in ledgers and bars, not ornamental KPI cards.
 - **Truthfulness:** Always label fixtures, synthetic outcomes, disabled external actions, and unsupported claims explicitly. Status colors supplement the words; they never replace them.
+
+### Model Trace
+
+- **Style:** The Operate stage uses one white execution sheet, a compact runtime ledger, and a narrow evidence rail. It remains part of the workshop world rather than becoming a dark developer console.
+- **Hierarchy:** The runtime ledger names provider path, prompt version, output contract, and execution authority; the trace sheet records the bounded sequence and prompt fingerprint; the run-evidence rail exposes status, latency, input/output tokens, recorded cost, and the deterministic fallback rule. Keep this evidence visible without making the model more important than the workflow.
+- **Truthfulness:** GitHub Pages replays a committed synthetic trace. A bypassed model call is shown as a valid policy decision, and unknown provider pricing is displayed as not set.
 
 ### Interaction and Accessibility
 

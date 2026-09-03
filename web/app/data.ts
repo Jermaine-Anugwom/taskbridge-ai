@@ -1,5 +1,5 @@
 export type ScenarioKey = "inbox" | "status" | "invoice";
-export type ViewKey = "listen" | "map" | "decide" | "explain" | "simulate" | "measure" | "handoff";
+export type ViewKey = "listen" | "map" | "decide" | "explain" | "simulate" | "operate" | "measure" | "handoff";
 export type AudienceKey = "employee" | "manager" | "executive" | "it";
 
 export type Scenario = {
@@ -162,6 +162,7 @@ export const views: Array<{ key: ViewKey; label: string; verb: string }> = [
   { key: "decide", label: "Decision", verb: "Decide" },
   { key: "explain", label: "Teach it back", verb: "Explain" },
   { key: "simulate", label: "Pilot studio", verb: "Simulate" },
+  { key: "operate", label: "Model trace", verb: "Operate" },
   { key: "measure", label: "Results", verb: "Measure" },
   { key: "handoff", label: "Handoff", verb: "Hand off" },
 ];

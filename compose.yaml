@@ -4,18 +4,42 @@ services:
       context: .
       dockerfile: Dockerfile.api
     environment:
-      TASKBRIDGE_DB: /data/taskbridge.db
+      TASKBRIDGE_DATABASE_URL: postgresql://taskbridge:taskbridge@database:5432/taskbridge
+      TASKBRIDGE_MODEL_PROVIDER: ${TASKBRIDGE_MODEL_PROVIDER:-deterministic}
+      TASKBRIDGE_MODEL_PROVIDER_NAME: ${TASKBRIDGE_MODEL_PROVIDER_NAME:-openai_compatible}
+      TASKBRIDGE_MODEL_ENDPOINT: ${TASKBRIDGE_MODEL_ENDPOINT:-}
+      TASKBRIDGE_MODEL_NAME: ${TASKBRIDGE_MODEL_NAME:-configured-model}
+      TASKBRIDGE_MODEL_API_KEY: ${TASKBRIDGE_MODEL_API_KEY:-}
+      TASKBRIDGE_REQUIRE_AUTH: ${TASKBRIDGE_REQUIRE_AUTH:-false}
+      TASKBRIDGE_VIEWER_TOKEN_SHA256: ${TASKBRIDGE_VIEWER_TOKEN_SHA256:-}
+      TASKBRIDGE_OPERATOR_TOKEN_SHA256: ${TASKBRIDGE_OPERATOR_TOKEN_SHA256:-}
+      TASKBRIDGE_ADMIN_TOKEN_SHA256: ${TASKBRIDGE_ADMIN_TOKEN_SHA256:-}
     ports:
       - "8000:8000"
-    volumes:
-      - taskbridge-data:/data
+    depends_on:
+      database:
+        condition: service_healthy
   workshop:
     build:
       context: web
     ports:
-      - "3000:3000"
+      - "3000:80"
     depends_on:
       - api
+
+  database:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: taskbridge
+      POSTGRES_USER: taskbridge
+      POSTGRES_PASSWORD: taskbridge
+    volumes:
+      - taskbridge-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taskbridge -d taskbridge"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
 volumes:
   taskbridge-data:

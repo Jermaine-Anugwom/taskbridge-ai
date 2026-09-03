@@ -31,6 +31,9 @@ The recommendation remains connected to the captured evidence, including volume,
 - Visible human checkpoints
 - Role-specific “Teach It Back” explanations
 - A deterministic pilot simulator
+- A model-backed analysis path with structured tool calls
+- Versioned prompts, evidence checks, retries, fallback, latency, token, and cost traces
+- Role-gated APIs and SQLite or PostgreSQL persistence
 - Synthetic baseline and pilot measurements
 - A handoff package containing the charter, SOP, measures, risks, rollback plan, and training guide
 
@@ -97,9 +100,26 @@ npm run dev
 
 No API key, model account, or network connection is required after dependencies are installed.
 
-## Optional model providers
+## Model-backed operations mode
 
-The deterministic engine is the default and remains the source of the committed demonstration results. Optional Ollama and generic JSON endpoint adapters are available through environment variables described in [`.env.example`](.env.example). Private records should not be sent to a model without an approved data path, retention policy, and security review.
+The deterministic engine remains the credential-free default and the source of the committed demonstration results. An optional OpenAI-compatible endpoint can analyze captured workflow evidence through the `record_workflow_analysis` tool contract.
+
+The runtime:
+
+- Forces a Pydantic-generated schema for model output.
+- Requires every observation and proposed tool call to cite captured evidence IDs.
+- Rejects unknown evidence, unsupported numbers, and actions that do not require approval.
+- Retries transient provider failures and falls back to a deterministic human-review result.
+- Records provider, model, prompt version, prompt hash, schema version, latency, retries, tokens, and cost when published rates are configured.
+- Stores no API keys or bearer tokens in trace records.
+
+The public Pages demonstration replays clearly labeled synthetic traces. It does not call a paid endpoint. See [Model operations](docs/MODEL_OPERATIONS.md) for the request contract and [`.env.example`](.env.example) for local configuration.
+
+## Deployment controls
+
+Local runs use SQLite by default. Docker Compose starts PostgreSQL, the API, and the static workshop. Production mode can require SHA-256-digested viewer, operator, and administrator bearer tokens. Raw tokens stay outside configuration files and trace records.
+
+`POST /api/workflows/{id}/model-analysis` is operator-only when authentication is required. `GET /api/operations/model-traces` is available to viewers and returns the evidence-safe trace ledger.
 
 ## Safety and privacy boundaries
 
@@ -119,7 +139,11 @@ TaskBridge records touch time, exceptions, human reviews, unsupported decisions,
 
 ## Limitations and future integrations
 
-Version `0.1.0` uses synthetic adapters and does not connect to email, finance, ticketing, or identity systems. It does not execute external actions. Future connectors should be added individually with least-privilege access, an explicit approval boundary, idempotency, retention rules, and integration-specific tests.
+Version `0.2.0` uses synthetic adapters and does not connect to email, finance, ticketing, or identity systems. It does not execute external actions. Future connectors should be added individually with least-privilege access, an explicit approval boundary, idempotency, retention rules, and integration-specific tests.
+
+## Design and implementation decisions
+
+Jermaine defined the workflow-first product direction, the four-way intervention decision, the employee-facing explanation model, and the requirement that model use remain optional. He also set the evidence, approval, simulation, and public-data boundaries used throughout the service and workshop.
 
 ## Project documents
 
@@ -130,6 +154,7 @@ Version `0.1.0` uses synthetic adapters and does not connect to email, finance, 
 - [Operating runbook](RUNBOOK.md)
 - [Development record](DEVELOPMENT.md)
 - [Architecture decisions](docs/ARCHITECTURE.md)
+- [Model operations](docs/MODEL_OPERATIONS.md)
 - [Release history](CHANGELOG.md)
 
 ## License

@@ -88,6 +88,47 @@ function SimulateView({ scenario, runStatus, onRun }: { scenario: Scenario; runS
   </section>;
 }
 
+function OperateView({ scenario }: { scenario: Scenario }) {
+  const bypassed = scenario.recommendation === "RULES";
+  const trace = bypassed
+    ? [
+        ["01", "Policy evaluated", "Stable rules and structured fields detected"],
+        ["02", "Model call bypassed", "The workflow does not benefit from model uncertainty"],
+        ["03", "Deterministic path selected", "Finance keeps every exception decision"],
+      ]
+    : [
+        ["01", "Input isolated", "Workflow evidence serialized as untrusted data"],
+        ["02", "Tool call returned", "record_workflow_analysis matched the required schema"],
+        ["03", "Evidence checked", "Every claim resolved to a captured evidence ID"],
+        ["04", "Action held", "Proposed review tool requires operator approval"],
+      ];
+  return <section className="operate-view" aria-labelledby="view-title">
+    <div className="operate-copy">
+      <h2 id="view-title">See what the model did, what it cost, and where it stopped.</h2>
+      <p>{bypassed ? "TaskBridge records why the model was not called. Choosing rules is an operational decision, not a missing feature." : "This synthetic trace shows the same fields emitted by the model-backed API path. The public demonstration replays a committed fixture and never exposes credentials."}</p>
+      <dl className="runtime-ledger">
+        <div><dt>Provider path</dt><dd>{bypassed ? "Bypassed by policy" : "OpenAI-compatible API"}</dd></div>
+        <div><dt>Prompt version</dt><dd>workflow-analysis-v1</dd></div>
+        <div><dt>Output contract</dt><dd>taskbridge.model-output.v1</dd></div>
+        <div><dt>Execution authority</dt><dd>Approval required</dd></div>
+      </dl>
+    </div>
+    <div className="trace-sheet" aria-label="Synthetic model trace">
+      <div className="trace-heading"><span>SYNTHETIC TRACE</span><strong>{bypassed ? "MODEL BYPASSED" : "SCHEMA VALID"}</strong></div>
+      <ol>{trace.map(([index, title, detail]) => <li key={index}><b>{index}</b><div><strong>{title}</strong><span>{detail}</span></div></li>)}</ol>
+      <div className="trace-fingerprint"><span>Prompt fingerprint</span><code>{bypassed ? "7af0…b191" : "2d13…8ac4"}</code></div>
+    </div>
+    <aside className="operations-rail">
+      <h3>Run evidence</h3>
+      <div><span>Status</span><strong>{bypassed ? "BYPASSED" : "SUCCEEDED"}</strong></div>
+      <div><span>Latency</span><strong>{bypassed ? "0 ms" : "842 ms"}</strong><small>Committed fixture</small></div>
+      <div><span>Tokens</span><strong>{bypassed ? "0 / 0" : "612 / 184"}</strong><small>Input / output</small></div>
+      <div><span>Recorded cost</span><strong>{bypassed ? "$0.0000" : "NOT SET"}</strong><small>Rates are never invented</small></div>
+      <div className="fallback-rule"><span>Failure rule</span><p>Timeout, rate limit, invalid schema, or unknown evidence triggers deterministic fallback and human review.</p></div>
+    </aside>
+  </section>;
+}
+
 function MeasureView({ scenario }: { scenario: Scenario }) {
   const reduction = Math.round((1 - scenario.measures.pilot / scenario.measures.baseline) * 100);
   return <section className="measure-view" aria-labelledby="view-title">
@@ -125,18 +166,19 @@ export default function Page() {
     <div className="workshop-shell">
       <nav className="stage-rail" aria-label="Workflow improvement stages">{views.map((item, index) => <button key={item.key} aria-current={view === item.key ? "step" : undefined} onClick={() => setView(item.key)}><span>{index + 1}</span><div><b>{item.verb}</b><small>{item.label}</small></div></button>)}</nav>
       <div className="workbench" id="workshop" data-view={view}>
-        <div className="bench-topline"><span>WORKSHOP / {scenario.name.toUpperCase()}</span><div><b>{String(activeIndex + 1).padStart(2, "0")}</b><small>of 07</small></div></div>
+        <div className="bench-topline"><span>WORKSHOP / {scenario.name.toUpperCase()}</span><div><b>{String(activeIndex + 1).padStart(2, "0")}</b><small>of 08</small></div></div>
         {view === "listen" && <ListenView scenario={scenario} />}
         {view === "map" && <MapView scenario={scenario} />}
         {view === "decide" && <DecideView scenario={scenario} />}
         {view === "explain" && <ExplainView scenario={scenario} audience={audience} onAudience={setAudience} />}
         {view === "simulate" && <SimulateView scenario={scenario} runStatus={runStatus} onRun={runPilot} />}
+        {view === "operate" && <OperateView scenario={scenario} />}
         {view === "measure" && <MeasureView scenario={scenario} />}
         {view === "handoff" && <HandoffView scenario={scenario} />}
         <div className="bench-nav"><button disabled={activeIndex === 0} onClick={() => setView(views[activeIndex - 1].key)}>Previous</button><p><strong>{views[activeIndex].verb}</strong> <span>→</span> {activeIndex < views.length - 1 ? views[activeIndex + 1].verb : "Complete"}</p><button disabled={activeIndex === views.length - 1} onClick={() => setView(views[activeIndex + 1].key)}>Next stage</button></div>
       </div>
     </div>
-    <footer className="app-footer"><span>TaskBridge AI v0.1.0</span><span>Deterministic offline mode</span><span>All records and outcomes are synthetic</span></footer>
-    <script type="application/json" data-impeccable-contract dangerouslySetInnerHTML={{ __html: JSON.stringify({ seed: "3bc2dcef", thesis: "Make the automation decision on the workshop table, not inside a black box.", world: "Bright operations workshop with movable process tiles, cobalt binder tabs, lime review marks, and cool paper surfaces.", story: "Listen, map, decide, explain, simulate, measure, and hand off one inspectable workflow.", first_viewport: "Scenario folders above a two-part workbench; a full-width before-and-after process map carries the initial view; stage rail remains visible.", form: "Grounded direction 4, operations workshop table.", finish: "unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance" }) }} />
+    <footer className="app-footer"><span>TaskBridge AI v0.2.0</span><span>Deterministic replay with optional model API</span><span>All records and outcomes are synthetic</span></footer>
+    <script type="application/json" data-impeccable-contract dangerouslySetInnerHTML={{ __html: JSON.stringify({ seed: "3bc2dcef", thesis: "Make the automation decision on the workshop table, not inside a black box.", world: "Bright operations workshop with movable process tiles, cobalt binder tabs, lime review marks, and cool paper surfaces.", story: "Listen, map, decide, explain, simulate, operate, measure, and hand off one inspectable workflow.", first_viewport: "Scenario folders above a two-part workbench; a full-width before-and-after process map carries the initial view; stage rail remains visible.", form: "Grounded direction 4, operations workshop table.", finish: "unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance" }) }} />
   </main>;
 }
