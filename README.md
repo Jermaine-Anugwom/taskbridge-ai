@@ -1,8 +1,6 @@
 # TaskBridge AI
 
-**Understand the work before choosing the technology.**
-
-TaskBridge is an open-source workflow workshop for teams that want to improve repetitive work without assuming AI is always the answer. It captures how a task actually works, compares four intervention choices, simulates a controlled pilot, and explains the proposal to the people who perform, manage, approve, and secure the process.
+**TaskBridge helps teams choose, explain, and test practical improvements to repetitive work without assuming AI is always the answer.**
 
 > Every person, organization, record, measurement, and outcome in this repository is synthetic.
 
@@ -10,9 +8,24 @@ TaskBridge is an open-source workflow workshop for teams that want to improve re
 
 [Open the interactive demonstration](https://jermaine-anugwom.github.io/taskbridge-ai/)
 
+## Run it locally
+
+Requires Git and Docker with Compose v2. Initial setup downloads dependencies and images; no model key is needed.
+
+```bash
+git clone https://github.com/Jermaine-Anugwom/taskbridge-ai.git
+cd taskbridge-ai
+docker compose up --build
+```
+
+Open the [workshop](http://127.0.0.1:3000) or [API documentation](http://127.0.0.1:8000/docs).
+The workshop is a synthetic replay, not a live production deployment. The API defaults to its deterministic engine.
+
 ## The everyday work problem
 
 Small operational tasks accumulate quietly: reading a shared inbox, rebuilding a weekly report, comparing the same invoice fields, or moving information between systems. Teams often jump from that frustration directly to a tool decision.
+
+TaskBridge captures how a task actually works, compares intervention choices, simulates a controlled pilot, and explains the proposal to the people who perform, manage, approve, and secure the process.
 
 TaskBridge inserts the missing step. It listens to the people doing the work, maps the current process, identifies uncertainty and failure cost, and compares:
 
@@ -70,15 +83,9 @@ flowchart LR
 - `fixtures/` contains 120 synthetic records across email, spreadsheet, and ticket-queue adapters.
 - `tests/` covers assessment modes, evidence, security boundaries, simulations, persistence, and API behavior.
 
-## Quickstart
+## Development setup
 
-### One command
-
-```bash
-docker compose up --build
-```
-
-Open the workshop at `http://127.0.0.1:3000` and the API documentation at `http://127.0.0.1:8000/docs`.
+From the cloned repository, use Python 3.12 for the service and Node.js 22 for the workshop.
 
 ### Python service
 
