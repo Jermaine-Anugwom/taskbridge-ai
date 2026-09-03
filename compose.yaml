@@ -4,6 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile.api
     environment:
+      TASKBRIDGE_ENV: demo
       TASKBRIDGE_DATABASE_URL: postgresql://taskbridge:taskbridge@database:5432/taskbridge
       TASKBRIDGE_MODEL_PROVIDER: ${TASKBRIDGE_MODEL_PROVIDER:-deterministic}
       TASKBRIDGE_MODEL_PROVIDER_NAME: ${TASKBRIDGE_MODEL_PROVIDER_NAME:-openai_compatible}
@@ -15,7 +16,7 @@ services:
       TASKBRIDGE_OPERATOR_TOKEN_SHA256: ${TASKBRIDGE_OPERATOR_TOKEN_SHA256:-}
       TASKBRIDGE_ADMIN_TOKEN_SHA256: ${TASKBRIDGE_ADMIN_TOKEN_SHA256:-}
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     depends_on:
       database:
         condition: service_healthy
@@ -23,7 +24,7 @@ services:
     build:
       context: web
     ports:
-      - "3000:80"
+      - "127.0.0.1:3000:80"
     depends_on:
       - api
 

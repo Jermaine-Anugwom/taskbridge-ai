@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.1 - 2026-09-03
+
+- Fixed missing provider usage being incorrectly recorded as zero.
+- Preserved per-attempt provider, model, retries, and reported consumption through schema/evidence rejection and deterministic fallback.
+- Distinguished complete usage totals from known partial subtotals; invalid or missing rates never fabricate a cost.
+- Added fail-closed production configuration, distinct role-token validation, non-demo database credentials, and loopback port bindings.
+- Added real PostgreSQL CI integration tests and loopback HTTP transport tests.
+- Added a reproducible zero-network evaluation and explicit opt-in live-provider protocol. No live provider benchmark was executed.
+- Documented that mechanical evidence checks do not prove semantic support.
+
 ## 0.2.0 - 2026-09-03
 
 - Added an OpenAI-compatible model path with a forced structured tool contract.

@@ -14,8 +14,10 @@ TaskBridge runs against synthetic records and performs no external writes. The d
 - Optional model credentials are read from environment variables and must never be committed.
 - The public interface contains no model endpoint or privileged action.
 - Production authentication stores SHA-256 token digests only. Raw bearer tokens remain in a secret manager or deployment secret.
-- Viewer, operator, and administrator roles are enforced at the API boundary when `TASKBRIDGE_REQUIRE_AUTH=true`.
+- Viewer, operator, and administrator roles are mandatory in production. Startup validates mode, authentication, three distinct token digests, and non-demo PostgreSQL credentials before opening the database.
 - Model traces exclude credentials and retain only evidence-safe prompts, hashes, usage, validation state, and output.
+- Traces retain rejected-response accounting without retaining raw rejection bodies. Unknown token counts remain null. Retry and fallback consumption is not silently erased.
+- A valid evidence ID is not proof that the cited source supports a sentence. Model prose still requires semantic human review; the test corpus includes an explicit counterexample.
 
 ## Using optional model providers
 

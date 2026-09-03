@@ -178,7 +178,7 @@ export default function Page() {
         <div className="bench-nav"><button disabled={activeIndex === 0} onClick={() => setView(views[activeIndex - 1].key)}>Previous</button><p><strong>{views[activeIndex].verb}</strong> <span>→</span> {activeIndex < views.length - 1 ? views[activeIndex + 1].verb : "Complete"}</p><button disabled={activeIndex === views.length - 1} onClick={() => setView(views[activeIndex + 1].key)}>Next stage</button></div>
       </div>
     </div>
-    <footer className="app-footer"><span>TaskBridge AI v0.2.0</span><span>Deterministic replay with optional model API</span><span>All records and outcomes are synthetic</span></footer>
+    <footer className="app-footer"><span>TaskBridge AI v0.2.1</span><span>Deterministic replay with optional model API</span><span>All records and outcomes are synthetic</span></footer>
     <script type="application/json" data-impeccable-contract dangerouslySetInnerHTML={{ __html: JSON.stringify({ seed: "3bc2dcef", thesis: "Make the automation decision on the workshop table, not inside a black box.", world: "Bright operations workshop with movable process tiles, cobalt binder tabs, lime review marks, and cool paper surfaces.", story: "Listen, map, decide, explain, simulate, operate, measure, and hand off one inspectable workflow.", first_viewport: "Scenario folders above a two-part workbench; a full-width before-and-after process map carries the initial view; stage rail remains visible.", form: "Grounded direction 4, operations workshop table.", finish: "unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance" }) }} />
   </main>;
 }

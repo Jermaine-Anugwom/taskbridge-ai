@@ -16,6 +16,32 @@ jobs:
       - run: python -m pip install -c constraints.txt -e '.[dev]'
       - run: ruff check .
       - run: pytest -q
+      - run: python -m taskbridge.evaluate --check
+  postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: taskbridge
+          POSTGRES_PASSWORD: synthetic-ci-only-password
+          POSTGRES_DB: taskbridge_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U taskbridge -d taskbridge_test"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      TASKBRIDGE_TEST_POSTGRES_URL: postgresql://taskbridge:synthetic-ci-only-password@127.0.0.1:5432/taskbridge_test
+      TASKBRIDGE_REQUIRE_POSTGRES_TESTS: "true"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -c constraints.txt -e '.[dev,postgres]'
+      - run: pytest -q tests/test_postgres.py
   web:
     runs-on: ubuntu-latest
     defaults:
@@ -39,3 +65,16 @@ jobs:
       - uses: actions/checkout@v7
       - run: docker build -f Dockerfile.api -t taskbridge-api:test .
       - run: docker build -f web/Dockerfile -t taskbridge-workshop:test web
+      - name: Production Compose refuses missing credentials
+        run: |
+          if docker compose -f compose.production.yaml config --quiet; then
+            echo "Production configuration unexpectedly accepted missing credentials"
+            exit 1
+          fi
+      - name: Production Compose validates with synthetic test settings
+        env:
+          TASKBRIDGE_POSTGRES_PASSWORD: synthetic-ci-only-password
+          TASKBRIDGE_VIEWER_TOKEN_SHA256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+          TASKBRIDGE_OPERATOR_TOKEN_SHA256: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+          TASKBRIDGE_ADMIN_TOKEN_SHA256: cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+        run: docker compose -f compose.production.yaml config --quiet

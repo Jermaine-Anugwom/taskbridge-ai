@@ -117,7 +117,7 @@ The public Pages demonstration replays clearly labeled synthetic traces. It does
 
 ## Deployment controls
 
-Local runs use SQLite by default. Docker Compose starts PostgreSQL, the API, and the static workshop. Production mode can require SHA-256-digested viewer, operator, and administrator bearer tokens. Raw tokens stay outside configuration files and trace records.
+Local runs use SQLite by default. The demo Compose file starts PostgreSQL, the API, and the static workshop bound to loopback. The separate [production configuration](compose.production.yaml) enforces authentication. `TASKBRIDGE_ENV=production` refuses startup unless authentication is enabled, all three role-token digests are valid and distinct, and PostgreSQL has a non-demo password. Raw tokens stay outside configuration files and trace records. This is a deployment template, not evidence of a hosted production deployment.
 
 `POST /api/workflows/{id}/model-analysis` is operator-only when authentication is required. `GET /api/operations/model-traces` is available to viewers and returns the evidence-safe trace ledger.
 
@@ -139,7 +139,19 @@ TaskBridge records touch time, exceptions, human reviews, unsupported decisions,
 
 ## Limitations and future integrations
 
-Version `0.2.0` uses synthetic adapters and does not connect to email, finance, ticketing, or identity systems. It does not execute external actions. Future connectors should be added individually with least-privilege access, an explicit approval boundary, idempotency, retention rules, and integration-specific tests.
+Version `0.2.1` uses synthetic adapters and does not connect to email, finance, ticketing, or identity systems. It does not execute external actions. Evidence-ID and numeric checks are mechanical safeguards, not proof that a sentence is supported by its citations. Every model trace requires semantic human review. Future connectors should be added individually with least-privilege access, an explicit approval boundary, idempotency, retention rules, and integration-specific tests.
+
+## Reliability evidence
+
+- Per-attempt accounting retains the original model and reported consumption after schema or evidence rejection. Missing usage stays `null`, including after fallback.
+- `usage` represents a complete total only when every attempt reports the relevant value. `reported_usage` is a partial subtotal, not a bill or a complete total.
+- Real loopback HTTP tests exercise the client, schema boundary, retries, and accounting without a paid provider.
+- A separate CI job runs repository and authenticated API integration tests against real PostgreSQL 17 in disposable test schemas. Local skips are not counted as integration passes.
+- The [reproducible evaluation](evaluations/README.md) includes accounting failures and a visible semantic counterexample. The committed report is offline; a real-provider benchmark has **not** been run.
+
+```bash
+python -m taskbridge.evaluate --check
+```
 
 ## Design and implementation decisions
 

@@ -9,7 +9,7 @@ from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import PlainTextResponse
 
 from .engine import assess_workflow, capture_workflow, explain_assessment, simulate_pilot
-from .auth import Role, auth_required, require_role
+from .auth import Role, auth_required, require_role, validate_runtime_config
 from .handoff import render_handoff
 from .models import (
     Assessment,
@@ -31,12 +31,13 @@ from .security import UntrustedInstructionError
 
 
 def create_app(database_path: str | Path | None = None) -> FastAPI:
-    repository = Repository(
-        database_path
+    database = str(database_path
         or os.getenv("TASKBRIDGE_DATABASE_URL")
         or os.getenv("TASKBRIDGE_DB", "taskbridge.db")
     )
-    app = FastAPI(title="TaskBridge AI", version="0.2.0")
+    validate_runtime_config(database)
+    repository = Repository(database)
+    app = FastAPI(title="TaskBridge AI", version="0.2.1")
 
     @app.get("/health")
     def health() -> dict[str, str | bool]:

@@ -1,0 +1,126 @@
+{
+  "dataset_version": "synthetic-workflow-reliability-v1",
+  "dataset_sha256": "518eb94f6a971da85aa798a6fc9059867ed24a611cfa9d44e013a7b799b636b9",
+  "data": "SYNTHETIC",
+  "mode": "offline",
+  "prompt_version": "workflow-analysis-v1",
+  "schema_version": "taskbridge.model-output.v1",
+  "validation_scope": "reference and numeric checks only; not semantic entailment",
+  "live_provider_benchmark": "NOT_RUN",
+  "provider_requests": 0,
+  "known_limitations": [
+    "A nonnumeric fabricated statement citing existing IDs can pass mechanical validation. Human semantic review remains required.",
+    "Offline fixtures validate accounting and controls, not live model quality or provider compatibility."
+  ],
+  "results": [
+    {
+      "case": "supported-output",
+      "status": "succeeded",
+      "input_tokens": 120,
+      "output_tokens": 45,
+      "attempts": 1,
+      "expectation_met": true,
+      "semantic_review_required": true
+    },
+    {
+      "case": "missing-usage",
+      "status": "succeeded",
+      "input_tokens": null,
+      "output_tokens": null,
+      "attempts": 1,
+      "expectation_met": true,
+      "semantic_review_required": true
+    },
+    {
+      "case": "zero-usage",
+      "status": "succeeded",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "attempts": 1,
+      "expectation_met": true,
+      "semantic_review_required": true
+    },
+    {
+      "case": "partial-usage",
+      "status": "succeeded",
+      "input_tokens": 120,
+      "output_tokens": null,
+      "attempts": 1,
+      "expectation_met": true,
+      "semantic_review_required": true
+    },
+    {
+      "case": "unknown-evidence",
+      "status": "fallback",
+      "input_tokens": 120,
+      "output_tokens": 45,
+      "attempts": 2,
+      "expectation_met": true,
+      "semantic_review_required": true
+    },
+    {
+      "case": "unsupported-number",
+      "status": "fallback",
+      "input_tokens": 120,
+      "output_tokens": 45,
+      "attempts": 2,
+      "expectation_met": true,
+      "semantic_review_required": true
+    },
+    {
+      "case": "unapproved-action",
+      "status": "fallback",
+      "input_tokens": 120,
+      "output_tokens": 45,
+      "attempts": 2,
+      "expectation_met": true,
+      "semantic_review_required": true
+    },
+    {
+      "case": "timeout",
+      "status": "fallback",
+      "input_tokens": null,
+      "output_tokens": null,
+      "attempts": 2,
+      "expectation_met": true,
+      "semantic_review_required": true
+    },
+    {
+      "case": "schema-rejected",
+      "status": "fallback",
+      "input_tokens": 120,
+      "output_tokens": 45,
+      "attempts": 2,
+      "expectation_met": true,
+      "semantic_review_required": true
+    },
+    {
+      "case": "unknown-retry-then-success",
+      "status": "succeeded",
+      "input_tokens": null,
+      "output_tokens": null,
+      "attempts": 2,
+      "expectation_met": true,
+      "semantic_review_required": true
+    },
+    {
+      "case": "semantic-counterexample",
+      "status": "succeeded",
+      "input_tokens": 120,
+      "output_tokens": 45,
+      "attempts": 1,
+      "expectation_met": true,
+      "semantic_review_required": true
+    },
+    {
+      "case": "deterministic-only",
+      "status": "succeeded",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "attempts": 1,
+      "expectation_met": true,
+      "semantic_review_required": true
+    }
+  ],
+  "expectations_met": 12
+}

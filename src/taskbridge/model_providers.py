@@ -11,7 +11,7 @@ from typing import Protocol
 
 from pydantic import ValidationError
 
-from .models import StructuredModelOutput
+from .models import ModelAttempt, ModelUsage, StructuredModelOutput
 
 
 @dataclass(frozen=True)
@@ -19,9 +19,31 @@ class ProviderResult:
     output: StructuredModelOutput
     provider: str
     model: str
-    input_tokens: int
-    output_tokens: int
+    input_tokens: int | None
+    output_tokens: int | None
     retry_count: int = 0
+    attempts: tuple[ModelAttempt, ...] = ()
+
+
+class ProviderFailure(ValueError):
+    """Safe error carrying accounting metadata, never raw responses or credentials."""
+
+    def __init__(self, category: str, attempts: list[ModelAttempt]):
+        super().__init__("Model response did not match the required tool schema or transport failed")
+        self.category = category
+        self.attempts = tuple(attempts)
+
+
+def reported_usage(payload: object) -> ModelUsage:
+    usage = payload.get("usage") if isinstance(payload, dict) else None
+    if not isinstance(usage, dict):
+        return ModelUsage()
+
+    def tokens(key: str) -> int | None:
+        value = usage.get(key)
+        return value if type(value) is int and value >= 0 else None
+
+    return ModelUsage(input_tokens=tokens("prompt_tokens"), output_tokens=tokens("completion_tokens"))
 
 
 class StructuredModel(Protocol):
@@ -34,7 +56,7 @@ class DeterministicModel:
         evidence_ids = [token.rstrip(":,.") for token in user.split() if token.startswith("ev-")]
         evidence_ids = list(dict.fromkeys(evidence_ids)) or ["ev-trigger"]
         output = StructuredModelOutput(
-            summary="The deterministic fallback preserved the evidence boundary and queued review.",
+            summary="The deterministic runtime preserved the evidence boundary and queued review.",
             summary_evidence_ids=evidence_ids[:2],
             observations=[{
                 "claim": "A person should review the proposed workflow change.",
@@ -68,6 +90,10 @@ class OpenAICompatibleModel:
     max_retries: int = 2
     provider_name: str = "openai_compatible"
 
+    def __post_init__(self) -> None:
+        if not 0 <= self.max_retries <= 5 or not 1 <= self.timeout_seconds <= 120:
+            raise ValueError("Provider retries or timeout are outside allowed bounds")
+
     def _request_body(self, system: str, user: str) -> bytes:
         schema = StructuredModelOutput.model_json_schema()
         body = json.dumps(
@@ -90,6 +116,7 @@ class OpenAICompatibleModel:
                     "function": {"name": "record_workflow_analysis"},
                 },
                 "stream": False,
+                "max_tokens": 1600,
             }
         ).encode()
         return body
@@ -99,31 +126,59 @@ class OpenAICompatibleModel:
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
+        attempts: list[ModelAttempt] = []
         for attempt in range(self.max_retries + 1):
             request = urllib.request.Request(self.endpoint, data=body, headers=headers, method="POST")
+            started = time.perf_counter()
+            record = ModelAttempt(
+                provider=self.provider_name, model=self.model, status="started", retry_index=attempt,
+            )
             try:
                 with urllib.request.urlopen(request, timeout=self.timeout_seconds) as response:  # noqa: S310
                     payload = json.loads(response.read())
+                # Capture usage before any schema or evidence validation can reject the response.
+                record.usage = reported_usage(payload)
+                if isinstance(payload, dict) and isinstance(payload.get("model"), str):
+                    record.model = payload["model"]
                 message = payload["choices"][0]["message"]
-                arguments = message["tool_calls"][0]["function"]["arguments"]
+                calls = message["tool_calls"]
+                if len(calls) != 1 or calls[0]["function"]["name"] != "record_workflow_analysis":
+                    raise ValueError("Unexpected tool contract")
+                arguments = calls[0]["function"]["arguments"]
                 output = StructuredModelOutput.model_validate_json(arguments)
-                usage = payload.get("usage") or {}
+                record.status = "returned"
+                record.latency_ms = max(1, round((time.perf_counter() - started) * 1000))
+                attempts.append(record)
                 return ProviderResult(
                     output=output,
                     provider=self.provider_name,
-                    model=str(payload.get("model") or self.model),
-                    input_tokens=int(usage.get("prompt_tokens") or 0),
-                    output_tokens=int(usage.get("completion_tokens") or 0),
+                    model=record.model,
+                    input_tokens=record.usage.input_tokens,
+                    output_tokens=record.usage.output_tokens,
                     retry_count=attempt,
+                    attempts=tuple(attempts),
                 )
             except HTTPError as exc:
-                if exc.code not in {408, 409, 429, 500, 502, 503, 504} or attempt == self.max_retries:
-                    raise
-            except (TimeoutError, URLError, socket.timeout):
-                if attempt == self.max_retries:
-                    raise
-            except (KeyError, IndexError, TypeError, json.JSONDecodeError, ValidationError):
-                raise ValueError("Model response did not match the required tool schema") from None
+                record.status = "transport_error"
+                record.error_category = f"HTTP{exc.code}"
+                # Some providers include usage even in non-2xx JSON responses.
+                try:
+                    record.usage = reported_usage(json.loads(exc.read()))
+                except (ValueError, TypeError, AttributeError):
+                    pass
+                retry = exc.code in {408, 409, 429, 500, 502, 503, 504}
+            except (TimeoutError, URLError, socket.timeout) as exc:
+                record.status = "transport_error"
+                record.error_category = type(exc).__name__
+                retry = True
+            except (KeyError, IndexError, TypeError, ValueError, ValidationError):
+                record.status = "schema_rejected"
+                record.error_category = "InvalidToolSchema"
+                retry = False
+            record.latency_ms = max(1, round((time.perf_counter() - started) * 1000))
+            attempts.append(record)
+            if not retry or attempt == self.max_retries:
+                raise ProviderFailure(record.error_category or "ProviderError", attempts) from None
             time.sleep(0.25 * (2**attempt))
         raise RuntimeError("Model request retry loop ended unexpectedly")
 

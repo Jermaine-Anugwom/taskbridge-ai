@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -195,9 +195,20 @@ class StructuredModelOutput(BaseModel):
 
 
 class ModelUsage(BaseModel):
-    input_tokens: int = Field(ge=0)
-    output_tokens: int = Field(ge=0)
-    estimated_cost_usd: float | None = Field(default=None, ge=0)
+    input_tokens: int | None = Field(default=None, ge=0, strict=True)
+    output_tokens: int | None = Field(default=None, ge=0, strict=True)
+    estimated_cost_usd: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+
+
+class ModelAttempt(BaseModel):
+    phase: str = "primary"
+    provider: str
+    model: str
+    status: str
+    retry_index: int = Field(default=0, ge=0)
+    latency_ms: int = Field(default=0, ge=0)
+    usage: ModelUsage = Field(default_factory=ModelUsage)
+    error_category: str | None = None
 
 
 class ModelTrace(BaseModel):
@@ -212,6 +223,11 @@ class ModelTrace(BaseModel):
     latency_ms: int = Field(ge=0)
     retry_count: int = Field(ge=0)
     usage: ModelUsage
+    # Total usage is null if any attempt is unknown. Reported usage is only a subtotal.
+    reported_usage: ModelUsage | None = None
+    attempts: list[ModelAttempt] = Field(default_factory=list)
+    # Reference/numeric validation is not a semantic entailment proof.
+    semantic_review_required: Literal[True] = True
     output: StructuredModelOutput
     error_category: str | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

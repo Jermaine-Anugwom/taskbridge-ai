@@ -116,3 +116,59 @@ def test_provider_rejects_non_schema_response(monkeypatch):
         OpenAICompatibleModel("https://models.example.test", "fixture").complete(
             "system", "user"
         )
+
+
+@pytest.mark.parametrize("usage,expected", [
+    (None, (None, None)), ({}, (None, None)),
+    ({"prompt_tokens": 0, "completion_tokens": 0}, (0, 0)),
+    ({"prompt_tokens": 12}, (12, None)),
+    ({"prompt_tokens": True, "completion_tokens": -1}, (None, None)),
+    ({"prompt_tokens": "12", "completion_tokens": 1.5}, (None, None)),
+    ("malformed", (None, None)),
+])
+def test_missing_or_invalid_usage_never_becomes_zero(monkeypatch, usage, expected):
+    payload = json.loads(response_payload())
+    payload["usage"] = usage
+    monkeypatch.setattr("urllib.request.urlopen", lambda *_args, **_kw: Response(json.dumps(payload).encode()))
+    result = OpenAICompatibleModel("https://models.example.test", "fixture").complete("s", "u")
+    assert (result.input_tokens, result.output_tokens) == expected
+    assert result.attempts[0].usage.input_tokens == expected[0]
+
+
+@pytest.mark.parametrize("mutation", ["schema", "wrong-tool", "extra-tool", "missing-choice"])
+def test_schema_rejection_preserves_billable_usage(monkeypatch, mutation):
+    from taskbridge.model_providers import ProviderFailure
+
+    payload = json.loads(response_payload())
+    calls = payload["choices"][0]["message"]["tool_calls"]
+    if mutation == "schema":
+        calls[0]["function"]["arguments"] = "{}"
+    elif mutation == "wrong-tool":
+        calls[0]["function"]["name"] = "execute_action"
+    elif mutation == "extra-tool":
+        calls.append(calls[0])
+    else:
+        payload["choices"] = []
+    monkeypatch.setattr("urllib.request.urlopen", lambda *_args, **_kw: Response(json.dumps(payload).encode()))
+    with pytest.raises(ProviderFailure) as error:
+        OpenAICompatibleModel("https://models.example.test", "fixture").complete("s", "u")
+    assert len(error.value.attempts) == 1
+    assert error.value.attempts[0].usage.input_tokens == 612
+    assert error.value.attempts[0].usage.output_tokens == 184
+    assert error.value.attempts[0].status == "schema_rejected"
+
+
+def test_exhausted_retries_keep_every_attempt_without_error_body(monkeypatch):
+    from taskbridge.model_providers import ProviderFailure
+
+    def timeout(*_args, **_kwargs):
+        raise TimeoutError("secret endpoint and credentials must not escape")
+
+    monkeypatch.setattr("urllib.request.urlopen", timeout)
+    monkeypatch.setattr("time.sleep", lambda _: None)
+    with pytest.raises(ProviderFailure) as error:
+        OpenAICompatibleModel("https://models.example.test", "fixture").complete("s", "u")
+    assert [attempt.retry_index for attempt in error.value.attempts] == [0, 1, 2]
+    assert all(attempt.usage.input_tokens is None for attempt in error.value.attempts)
+    assert "secret" not in str(error.value)
+    assert "secret" not in repr(error.value.attempts)

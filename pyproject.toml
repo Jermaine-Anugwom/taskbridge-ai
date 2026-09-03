@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "taskbridge-ai"
-version = "0.2.0"
+version = "0.2.1"
 description = "Evidence-bound workflow discovery, automation assessment, and pilot simulation."
 requires-python = ">=3.12"
 dependencies = [
@@ -26,6 +26,7 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--strict-markers"
+markers = ["postgres: requires real disposable PostgreSQL; never mocked"]
 
 [tool.ruff]
 line-length = 100

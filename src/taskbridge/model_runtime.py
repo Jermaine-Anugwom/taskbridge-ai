@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import re
 import time
 import uuid
 
-from .model_providers import DeterministicModel, StructuredModel
+from .model_providers import DeterministicModel, ProviderFailure, ProviderResult, StructuredModel
 from .models import (
+    ModelAttempt,
     ModelRunStatus,
     ModelTrace,
     ModelUsage,
@@ -62,16 +64,44 @@ def validate_evidence(output: StructuredModelOutput, workflow: WorkflowRecord) -
             raise ValueError("Every proposed tool call must require approval")
 
 
-def _cost(input_tokens: int, output_tokens: int) -> float | None:
+def _cost(input_tokens: int | None, output_tokens: int | None) -> float | None:
     input_rate = os.getenv("TASKBRIDGE_INPUT_USD_PER_MILLION")
     output_rate = os.getenv("TASKBRIDGE_OUTPUT_USD_PER_MILLION")
-    if input_rate is None or output_rate is None:
+    if input_rate is None or output_rate is None or input_tokens is None or output_tokens is None:
         return None
-    return round(
-        input_tokens * float(input_rate) / 1_000_000
-        + output_tokens * float(output_rate) / 1_000_000,
-        8,
-    )
+    try:
+        rates = [float(input_rate), float(output_rate)]
+    except ValueError:
+        return None
+    if any(not math.isfinite(rate) or rate < 0 for rate in rates):
+        return None
+    amount = (input_tokens * rates[0] + output_tokens * rates[1]) / 1_000_000
+    return round(amount, 8) if math.isfinite(amount) else None
+
+
+def _result_attempts(result: ProviderResult, phase: str, latency_ms: int) -> list[ModelAttempt]:
+    if result.attempts:
+        return [item.model_copy(deep=True, update={"phase": phase}) for item in result.attempts]
+    # Third-party adapters without attempt-level metadata must not hide earlier retries.
+    attempts = [ModelAttempt(
+        phase=phase, provider=result.provider, model=result.model, status="unreported_retry",
+        retry_index=index,
+    ) for index in range(result.retry_count)]
+    attempts.append(ModelAttempt(
+        phase=phase, provider=result.provider, model=result.model, status="returned",
+        retry_index=result.retry_count, latency_ms=latency_ms,
+        usage=ModelUsage(input_tokens=result.input_tokens, output_tokens=result.output_tokens),
+    ))
+    return attempts
+
+
+def _aggregate(attempts: list[ModelAttempt], *, reported_only: bool) -> ModelUsage:
+    values = {}
+    for field in ("input_tokens", "output_tokens", "estimated_cost_usd"):
+        all_values = [getattr(item.usage, field) for item in attempts]
+        known = [value for value in all_values if value is not None]
+        values[field] = sum(known) if known and (reported_only or len(known) == len(all_values)) else None
+    return ModelUsage(**values)
 
 
 def run_model_analysis(
@@ -85,14 +115,64 @@ def run_model_analysis(
     started = time.perf_counter()
     status = ModelRunStatus.SUCCEEDED
     error_category: str | None = None
+    attempts: list[ModelAttempt] = []
     try:
         result = model.complete(system, user)
+        attempts = _result_attempts(result, "primary", round((time.perf_counter() - started) * 1000))
         validate_evidence(result.output, workflow)
-    except Exception as exc:  # Provider failures are recorded before deterministic fallback.
+        attempts[-1].status = "accepted"
+    except Exception as exc:
         status = ModelRunStatus.FALLBACK
-        error_category = type(exc).__name__
-        result = (fallback or DeterministicModel()).complete(system, user)
-        validate_evidence(result.output, workflow)
+        error_category = exc.category if isinstance(exc, ProviderFailure) else type(exc).__name__
+        if isinstance(exc, ProviderFailure):
+            attempts = [item.model_copy(deep=True) for item in exc.attempts]
+        elif attempts:
+            attempts[-1].status = "evidence_rejected"
+            attempts[-1].error_category = error_category
+        else:
+            attempts.append(ModelAttempt(
+                provider=getattr(model, "provider_name", "unidentified"),
+                model=getattr(model, "model", type(model).__name__),
+                status="provider_error", error_category=error_category,
+                latency_ms=round((time.perf_counter() - started) * 1000),
+            ))
+        fallback_started = time.perf_counter()
+        fallback_model = fallback or DeterministicModel()
+        fallback_attempts: list[ModelAttempt] = []
+        try:
+            result = fallback_model.complete(system, user)
+            fallback_attempts = _result_attempts(
+                result, "fallback", round((time.perf_counter() - fallback_started) * 1000),
+            )
+            validate_evidence(result.output, workflow)
+            fallback_attempts[-1].status = "accepted"
+        except Exception as fallback_error:
+            status = ModelRunStatus.BLOCKED
+            if isinstance(fallback_error, ProviderFailure):
+                fallback_attempts = [item.model_copy(deep=True, update={"phase": "fallback"})
+                                     for item in fallback_error.attempts]
+            elif fallback_attempts:
+                fallback_attempts[-1].status = "evidence_rejected"
+                fallback_attempts[-1].error_category = type(fallback_error).__name__
+            else:
+                fallback_attempts = [ModelAttempt(
+                    phase="fallback", provider=getattr(fallback_model, "provider_name", "unidentified"),
+                    model=getattr(fallback_model, "model", type(fallback_model).__name__),
+                    status="provider_error", error_category=type(fallback_error).__name__,
+                )]
+            result = DeterministicModel().complete(system, user)
+            validate_evidence(result.output, workflow)
+            terminal = _result_attempts(result, "fallback", 0)
+            terminal[-1].status = "accepted"
+            fallback_attempts.extend(terminal)
+        attempts.extend(fallback_attempts)
+
+    for attempt in attempts:
+        attempt.usage.estimated_cost_usd = (
+            0.0 if attempt.provider == "deterministic"
+            else _cost(attempt.usage.input_tokens, attempt.usage.output_tokens)
+            if attempt.phase == "primary" else None
+        )
 
     latency_ms = max(1, round((time.perf_counter() - started) * 1000))
     return ModelTrace(
@@ -105,12 +185,11 @@ def run_model_analysis(
         schema_version=SCHEMA_VERSION,
         status=status,
         latency_ms=latency_ms,
-        retry_count=result.retry_count,
-        usage=ModelUsage(
-            input_tokens=result.input_tokens,
-            output_tokens=result.output_tokens,
-            estimated_cost_usd=_cost(result.input_tokens, result.output_tokens),
-        ),
+        retry_count=sum(max((item.retry_index for item in attempts if item.phase == phase), default=0)
+                        for phase in ("primary", "fallback")),
+        usage=_aggregate(attempts, reported_only=False),
+        reported_usage=_aggregate(attempts, reported_only=True),
+        attempts=attempts,
         output=result.output,
         error_category=error_category,
     )
